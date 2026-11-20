@@ -1,63 +1,120 @@
-
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
+import Header from "./components/Header";
+import ChatMessage from "./components/ChatMessage";
+import ChatComposer from "./components/ChatComposer";
+import UploadNotice from "./components/UploadNotice";
 import "./App.css";
 
-const API = "http://localhost:8000";
+const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
-function showSources(sources) {
-    if (!sources || sources.length === 0) return "";
+const SUGGESTIONS = [
+    {
+        title: "Summarize key points",
+        question: "Give me a concise summary of the key points in the uploaded notes."
+    },
+    {
+        title: "Minimum internship duration",
+        question: "What is the minimum internship duration?"
+    },
+    {
+        title: "Project report structure",
+        question: "What are the chapters included in the project report?"
+    }
+];
 
-    const names = sources.map(
-        (s) => `${s.source} - Page ${s.page}`
-    );
-
-    return [...new Set(names)].join(" · ");
-}
-
-function App() {
-    // Application states
+export default function App() {
     const [question, setQuestion] = useState("");
     const [messages, setMessages] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [notesCount, setNotesCount] = useState(0);
-    const [darkMode, setDarkMode] = useState(false);
+    const [isAsking, setIsAsking] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
+    const [indexedPieces, setIndexedPieces] = useState(null);
+    const [countStatus, setCountStatus] = useState("loading"); // "loading" | "loaded" | "unavailable"
+    const [uploadNotice, setUploadNotice] = useState(null);
+    const [theme, setTheme] = useState(() => {
+        return localStorage.getItem("amn_theme") || "light";
+    });
 
-    // Fetch the number of stored pieces from FastAPI
-    async function getNotesCount() {
+    const chatEndRef = useRef(null);
+    const welcomeUploadRef = useRef(null);
+
+    // Apply theme to document
+    useEffect(() => {
+        document.documentElement.setAttribute("data-theme", theme);
+        localStorage.setItem("amn_theme", theme);
+    }, [theme]);
+
+    function toggleTheme() {
+        setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+    }
+
+    // Fetch indexed chunks count from backend
+    async function fetchIndexedCount() {
+        setCountStatus("loading");
         try {
             const res = await fetch(`${API}/`);
-            if (!res.ok) throw new Error("Could not get notes count");
-
+            if (!res.ok) {
+                throw new Error(`Server returned HTTP ${res.status}`);
+            }
             const data = await res.json();
-            setNotesCount(data.pieces);
+            setIndexedPieces(data.pieces ?? 0);
+            setCountStatus("loaded");
         } catch (error) {
-            console.error("Notes count error:", error);
+            console.error("Failed to fetch chunk count:", error);
+            setCountStatus("unavailable");
         }
     }
 
-    // Get notes count when the application opens
     useEffect(() => {
-        getNotesCount();
+        let isMounted = true;
+        async function initialLoad() {
+            try {
+                const res = await fetch(`${API}/`);
+                if (!res.ok) {
+                    throw new Error(`Server returned HTTP ${res.status}`);
+                }
+                const data = await res.json();
+                if (isMounted) {
+                    setIndexedPieces(data.pieces ?? 0);
+                    setCountStatus("loaded");
+                }
+            } catch (error) {
+                console.error("Failed to fetch initial chunk count:", error);
+                if (isMounted) {
+                    setCountStatus("unavailable");
+                }
+            }
+        }
+        initialLoad();
+        return () => {
+            isMounted = false;
+        };
     }, []);
 
-    // Add a message to the chat
+    // Scroll to bottom when conversation updates
+    useEffect(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [messages, isAsking]);
+
     function addMessage(msg) {
-        setMessages((old) => [...old, msg]);
+        setMessages((prev) => [...prev, msg]);
     }
 
-    // Ask a question from the uploaded PDFs
-    async function askQuestion() {
-        if (!question.trim() || loading) return;
+    async function handleAsk(promptText) {
+        const text = (promptText ?? question).trim();
+        if (!text || isAsking) return;
 
-        const myQuestion = question.trim();
+        // Clear composer if asked from input
+        if (!promptText) {
+            setQuestion("");
+        }
 
+        // Add user question
         addMessage({
             role: "user",
-            text: myQuestion
+            text
         });
 
-        setQuestion("");
-        setLoading(true);
+        setIsAsking(true);
 
         try {
             const res = await fetch(`${API}/ask`, {
@@ -65,247 +122,197 @@ function App() {
                 headers: {
                     "Content-Type": "application/json"
                 },
-                body: JSON.stringify({
-                    question: myQuestion
-                })
+                body: JSON.stringify({ question: text })
             });
 
-            const data = await res.json();
+            let data;
+            try {
+                data = await res.json();
+            } catch {
+                throw new Error("Invalid response format received from server.");
+            }
 
             if (!res.ok) {
-                throw new Error(data.detail || "Server error");
+                throw new Error(data?.detail || `Error from server (HTTP ${res.status})`);
             }
 
             addMessage({
                 role: "bot",
-                text: data.answer,
-                sources: data.sources || []
+                text: data.answer || "No answer returned.",
+                sources: Array.isArray(data.sources) ? data.sources : []
             });
-
         } catch (error) {
             addMessage({
                 role: "bot",
-                text: `Oops! ${error.message}. Is the backend running?`
+                text: `Unable to get answer: ${error.message}. Please verify the backend service is running.`,
+                isError: true
             });
         } finally {
-            setLoading(false);
+            setIsAsking(false);
         }
     }
 
-    // Upload a PDF file
-    async function uploadPdf(e) {
-        const input = e.target;
-        const file = input.files?.[0];
-
-        if (!file || loading) return;
+    async function handleUpload(file) {
+        if (!file || isUploading) return;
 
         if (!file.name.toLowerCase().endsWith(".pdf")) {
-            addMessage({
-                role: "bot",
-                text: "Please select a PDF file."
+            setUploadNotice({
+                type: "error",
+                message: "Please select a valid PDF document."
             });
-            input.value = "";
             return;
         }
 
-        const form = new FormData();
-        form.append("file", file);
+        setUploadNotice(null);
+        setIsUploading(true);
 
-        setLoading(true);
+        const formData = new FormData();
+        formData.append("file", file);
 
         try {
             const res = await fetch(`${API}/upload`, {
                 method: "POST",
-                body: form
+                body: formData
             });
 
-            const data = await res.json();
-
-            if (!res.ok) {
-                throw new Error(data.detail || "Upload failed");
+            let data;
+            try {
+                data = await res.json();
+            } catch {
+                throw new Error("Invalid response format received from server.");
             }
 
-            addMessage({
-                role: "bot",
-                text: data.message
+            if (!res.ok) {
+                throw new Error(data?.detail || `Upload failed with status ${res.status}`);
+            }
+
+            setUploadNotice({
+                type: "success",
+                message: data.message || `Successfully ingested ${file.name}.`
             });
 
-            // Update notes counter after uploading
-            await getNotesCount();
-
+            // Refresh chunk counter
+            await fetchIndexedCount();
         } catch (error) {
-            addMessage({
-                role: "bot",
-                text: `Upload failed: ${error.message}`
+            setUploadNotice({
+                type: "error",
+                message: `Upload failed: ${error.message}`
             });
         } finally {
-            setLoading(false);
-            input.value = "";
+            setIsUploading(false);
         }
     }
 
-    // Clear all chat messages
-    function clearChat() {
+    function handleClearChat() {
         setMessages([]);
         setQuestion("");
-    }
-
-    // Toggle dark mode
-    function toggleDarkMode() {
-        setDarkMode((old) => !old);
+        setUploadNotice(null);
     }
 
     return (
-        <div className={`app ${darkMode ? "dark" : ""}`}>
+        <div className={`app-root ${theme}`}>
+            <Header
+                indexedPieces={indexedPieces}
+                countStatus={countStatus}
+                onRefreshCount={fetchIndexedCount}
+                theme={theme}
+                onToggleTheme={toggleTheme}
+                messagesCount={messages.length}
+                onClearChat={handleClearChat}
+            />
 
-            {/* Header */}
-            <header className="header">
-                <div>
-                    <h1>📚 Ask My Notes</h1>
-                    <p className="subtitle">
-                        Your personal PDF AI assistant
-                    </p>
-                </div>
-
-                <div className="header-actions">
-                    <button
-                        className="theme-button"
-                        onClick={toggleDarkMode}
-                        title="Toggle dark mode"
-                    >
-                        {darkMode ? "☀️ Light" : "🌙 Dark"}
-                    </button>
-
-                    <button
-                        className="clear-button"
-                        onClick={clearChat}
-                        disabled={messages.length === 0}
-                    >
-                        🗑 Clear Chat
-                    </button>
-                </div>
-            </header>
-
-            {/* Notes counter */}
-            <div className="notes-counter">
-                📄 {notesCount} pieces in your notes
-                <button
-                    className="refresh-button"
-                    onClick={getNotesCount}
-                    title="Refresh notes count"
-                >
-                    ↻
-                </button>
-            </div>
-
-            {/* Chat messages */}
-            <div className="chat">
-
-                {messages.length === 0 && (
-                    <div className="welcome">
-                        <div className="welcome-icon">🤖</div>
-                        <h2>Hello! How can I help you?</h2>
-                        <p>
-                            Upload a PDF or ask a question
-                            about your existing notes.
-                        </p>
-
-                        <div className="suggestions">
-                            <span>Try asking:</span>
-                            <button
-                                onClick={() =>
-                                    setQuestion(
-                                        "What is the minimum internship duration?"
-                                    )
-                                }
-                            >
-                                Minimum internship duration
-                            </button>
-
-                            <button
-                                onClick={() =>
-                                    setQuestion(
-                                        "What are the chapters in the project report?"
-                                    )
-                                }
-                            >
-                                Project report chapters
-                            </button>
-                        </div>
-                    </div>
-                )}
-
-                {messages.map((m, i) => (
-                    <div
-                        key={i}
-                        className={`msg ${m.role}`}
-                    >
-                        <p>{m.text}</p>
-
-                        {m.sources && m.sources.length > 0 && (
-                            <small className="sources">
-                                📄 Sources: {showSources(m.sources)}
-                            </small>
-                        )}
-                    </div>
-                ))}
-
-                {loading && (
-                    <div className="msg bot loading">
-                        <span className="spinner"></span>
-                        Processing your request...
-                    </div>
-                )}
-
-            </div>
-
-            {/* Input area */}
-            <div className="ask-box">
-
-                {/* PDF upload */}
-                <label
-                    className={`upload ${loading ? "disabled" : ""}`}
-                    title="Upload a PDF"
-                >
-                    📎 PDF
-                    <input
-                        type="file"
-                        accept=".pdf,application/pdf"
-                        hidden
-                        onChange={uploadPdf}
-                        disabled={loading}
-                    />
-                </label>
-
-                {/* Question input */}
-                <input
-                    type="text"
-                    value={question}
-                    onChange={(e) => setQuestion(e.target.value)}
-                    onKeyDown={(e) => {
-                        if (e.key === "Enter") askQuestion();
-                    }}
-                    placeholder="Ask something about your notes..."
-                    disabled={loading}
+            <main className="app-main">
+                <UploadNotice
+                    notice={uploadNotice}
+                    isUploading={isUploading}
+                    onDismiss={() => setUploadNotice(null)}
                 />
 
-                {/* Ask button */}
-                <button
-                    className="ask-button"
-                    onClick={askQuestion}
-                    disabled={loading || !question.trim()}
-                >
-                    Ask
-                </button>
+                {messages.length === 0 ? (
+                    <section className="welcome-card" aria-label="Welcome">
+                        <div className="welcome-icon" aria-hidden="true"></div>
+                        <h2 className="welcome-title">Ask your PDF notes</h2>
+                        <p className="welcome-desc">
+                            Upload PDF documents and ask questions about their content.
+                            Answers are grounded in retrieved passages and reference their source pages.
+                        </p>
 
-            </div>
+                        <div className="welcome-upload-wrap">
+                            <input
+                                ref={welcomeUploadRef}
+                                type="file"
+                                accept=".pdf,application/pdf"
+                                hidden
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) handleUpload(file);
+                                    e.target.value = "";
+                                }}
+                                disabled={isUploading || isAsking}
+                            />
+                            <button
+                                type="button"
+                                className="welcome-upload-btn"
+                                onClick={() => welcomeUploadRef.current?.click()}
+                                disabled={isUploading || isAsking}
+                            >
+                                <span aria-hidden="true"></span>
+                                Upload a PDF to begin
+                            </button>
+                        </div>
 
-            <footer className="footer">
-                Powered by FastAPI · ChromaDB · Groq
-            </footer>
+                        <div className="suggestions-section">
+                            <span className="suggestions-label">Sample questions:</span>
+                            <div className="suggestions-grid">
+                                {SUGGESTIONS.map((item) => (
+                                    <button
+                                        type="button"
+                                        key={item.title}
+                                        className="suggestion-pill"
+                                        onClick={() => handleAsk(item.question)}
+                                        disabled={isAsking}
+                                    >
+                                        <span className="suggestion-text">{item.title}</span>
+                                        <span className="suggestion-arrow" aria-hidden="true">→</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </section>
+                ) : (
+                    <section className="conversation-flow" aria-label="Conversation history">
+                        {messages.map((msg, index) => (
+                            <ChatMessage key={index} message={msg} />
+                        ))}
 
+                        {isAsking && (
+                            <div className="message-row bot loading" role="status" aria-live="polite">
+                                <div className="message-avatar" aria-hidden="true">✦</div>
+                                <div className="message-body">
+                                    <span className="message-author">Ask My Notes</span>
+                                    <div className="thinking-indicator">
+                                        <span className="pulse-dot"></span>
+                                        <span className="pulse-dot"></span>
+                                        <span className="pulse-dot"></span>
+                                        <span className="thinking-label">Thinking...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        <div ref={chatEndRef} />
+                    </section>
+                )}
+            </main>
+
+            <ChatComposer
+                question={question}
+                setQuestion={setQuestion}
+                onSubmit={() => handleAsk()}
+                onUpload={handleUpload}
+                isAsking={isAsking}
+                isUploading={isUploading}
+            />
         </div>
     );
 }
-
-export default App;
