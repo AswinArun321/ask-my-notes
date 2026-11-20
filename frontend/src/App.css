@@ -1,0 +1,473 @@
+
+/* ------------------------------
+   MAIN APPLICATION
+------------------------------ */
+
+.app {
+    max-width: 850px;
+    height: 100vh;
+    margin: 0 auto;
+    padding: 24px;
+
+    display: flex;
+    flex-direction: column;
+
+    background: #f4f1ff;
+    color: #25203b;
+
+    transition: background 0.3s, color 0.3s;
+}
+
+/* ------------------------------
+   HEADER
+------------------------------ */
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.header h1 {
+    color: #2d1f66;
+    font-size: 28px;
+}
+
+.subtitle {
+    color: #827a9e;
+    font-size: 13px;
+    margin-top: 4px;
+}
+
+.header-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.theme-button,
+.clear-button {
+    padding: 10px 13px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.theme-button {
+    background: #e6ddff;
+    color: #4c32a5;
+}
+
+.clear-button {
+    background: #ffe5e5;
+    color: #b52c2c;
+}
+
+.clear-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ------------------------------
+   NOTES COUNTER
+------------------------------ */
+
+.notes-counter {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    background: white;
+    border: 1px solid #ddd6f5;
+    border-radius: 10px;
+
+    padding: 10px 14px;
+    margin-bottom: 12px;
+
+    color: #5b3cc4;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.refresh-button {
+    border: none;
+    background: transparent;
+    color: #5b3cc4;
+    font-size: 22px;
+    cursor: pointer;
+}
+
+/* ------------------------------
+   CHAT AREA
+------------------------------ */
+
+.chat {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+
+    padding: 14px;
+    border-radius: 14px;
+
+    background: rgba(255, 255, 255, 0.55);
+}
+
+/* ------------------------------
+   WELCOME SCREEN
+------------------------------ */
+
+.welcome {
+    margin: auto;
+    text-align: center;
+    padding: 20px;
+}
+
+.welcome-icon {
+    font-size: 45px;
+    margin-bottom: 10px;
+}
+
+.welcome h2 {
+    color: #35236f;
+    margin-bottom: 8px;
+}
+
+.welcome p {
+    color: #827a9e;
+    font-size: 14px;
+}
+
+.suggestions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin-top: 22px;
+}
+
+.suggestions span {
+    font-size: 13px;
+    color: #827a9e;
+}
+
+.suggestions button {
+    background: white;
+    color: #5b3cc4;
+    border: 1px solid #d9cdfa;
+    padding: 9px 14px;
+    border-radius: 20px;
+    cursor: pointer;
+}
+
+/* ------------------------------
+   CHAT MESSAGES
+------------------------------ */
+
+.msg {
+    max-width: 85%;
+    padding: 13px 16px;
+    border-radius: 16px;
+
+    line-height: 1.6;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.msg p {
+    margin: 0;
+}
+
+.msg.user {
+    align-self: flex-end;
+    background: #5b3cc4;
+    color: white;
+    border-bottom-right-radius: 4px;
+}
+
+.msg.bot {
+    align-self: flex-start;
+    background: white;
+    border: 1px solid #ddd6f5;
+    color: #25203b;
+    border-bottom-left-radius: 4px;
+}
+
+.sources {
+    display: block;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid #e6e0f5;
+
+    color: #756b99;
+    font-size: 12px;
+}
+
+/* ------------------------------
+   LOADING INDICATOR
+------------------------------ */
+
+.loading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #756b99;
+}
+
+.spinner {
+    width: 16px;
+    height: 16px;
+    border: 3px solid #ddd6f5;
+    border-top-color: #5b3cc4;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ------------------------------
+   INPUT AREA
+------------------------------ */
+
+.ask-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 0;
+}
+
+.ask-box input[type="text"] {
+    flex: 1;
+    min-width: 0;
+
+    padding: 14px;
+    font-size: 15px;
+
+    border: 1px solid #cfc4f4;
+    border-radius: 12px;
+    outline: none;
+
+    background: white;
+    color: #25203b;
+}
+
+.ask-box input[type="text"]:focus {
+    border-color: #5b3cc4;
+}
+
+/* ------------------------------
+   PDF UPLOAD BUTTON
+------------------------------ */
+
+.upload {
+    padding: 14px;
+    border-radius: 12px;
+
+    background: white;
+    border: 1px solid #cfc4f4;
+
+    color: #5b3cc4;
+    font-weight: 600;
+
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.upload:hover {
+    background: #eee8ff;
+}
+
+.upload.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ------------------------------
+   ASK BUTTON
+------------------------------ */
+
+.ask-button {
+    padding: 14px 24px;
+
+    border: none;
+    border-radius: 12px;
+
+    background: #ffc94d;
+    color: #2d1f66;
+
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.ask-button:hover:not(:disabled) {
+    background: #f5b92d;
+}
+
+.ask-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ------------------------------
+   FOOTER
+------------------------------ */
+
+.footer {
+    text-align: center;
+    padding-top: 4px;
+
+    font-size: 12px;
+    color: #938baa;
+}
+
+/* ------------------------------
+   DARK MODE
+------------------------------ */
+
+.app.dark {
+    background: #171426;
+    color: #f3efff;
+}
+
+.dark .header h1 {
+    color: #d5c6ff;
+}
+
+.dark .subtitle {
+    color: #aaa0c7;
+}
+
+.dark .chat {
+    background: #211c35;
+}
+
+.dark .welcome h2 {
+    color: #e0d5ff;
+}
+
+.dark .welcome p,
+.dark .suggestions span {
+    color: #aaa0c7;
+}
+
+.dark .msg.bot {
+    background: #302944;
+    border-color: #51416d;
+    color: #f3efff;
+}
+
+.dark .sources {
+    color: #c1b5df;
+    border-top-color: #51416d;
+}
+
+.dark .notes-counter {
+    background: #302944;
+    border-color: #51416d;
+    color: #d5c6ff;
+}
+
+.dark .refresh-button {
+    color: #d5c6ff;
+}
+
+.dark .ask-box input[type="text"] {
+    background: #302944;
+    border-color: #51416d;
+    color: white;
+}
+
+.dark .ask-box input[type="text"]::placeholder {
+    color: #aaa0c7;
+}
+
+.dark .upload {
+    background: #302944;
+    border-color: #51416d;
+    color: #d5c6ff;
+}
+
+.dark .upload:hover {
+    background: #413456;
+}
+
+.dark .theme-button {
+    background: #413456;
+    color: #e0d5ff;
+}
+
+.dark .clear-button {
+    background: #512b3b;
+    color: #ffc2ce;
+}
+
+.dark .suggestions button {
+    background: #302944;
+    border-color: #51416d;
+    color: #d5c6ff;
+}
+
+.dark .footer {
+    color: #aaa0c7;
+}
+
+/* ------------------------------
+   RESPONSIVE DESIGN
+------------------------------ */
+
+@media (max-width: 600px) {
+
+    .app {
+        padding: 14px;
+    }
+
+    .header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .header h1 {
+        font-size: 23px;
+    }
+
+    .header-actions {
+        width: 100%;
+    }
+
+    .theme-button,
+    .clear-button {
+        flex: 1;
+    }
+
+    .msg {
+        max-width: 95%;
+    }
+
+    .ask-box {
+        flex-wrap: wrap;
+    }
+
+    .ask-box input[type="text"] {
+        width: 100%;
+        flex-basis: 100%;
+        order: 1;
+    }
+
+    .upload {
+        order: 2;
+    }
+
+    .ask-button {
+        flex: 1;
+        order: 3;
+    }
+}
