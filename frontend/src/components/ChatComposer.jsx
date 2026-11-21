@@ -6,7 +6,8 @@ export default function ChatComposer({
     onSubmit,
     onUpload,
     isAsking,
-    isUploading
+    isUploading,
+    agentMode
 }) {
     const fileInputRef = useRef(null);
 
@@ -52,7 +53,11 @@ export default function ChatComposer({
                     className="composer-input"
                     value={question}
                     onChange={(e) => setQuestion(e.target.value)}
-                    placeholder="Ask a question about your documents..."
+                    placeholder={
+                        agentMode
+                            ? "Ask Study Buddy Agent (notes, calculations, date, tasks)..."
+                            : "Ask a question about your documents..."
+                    }
                     disabled={isAsking}
                     aria-label="Question prompt"
                 />
@@ -69,7 +74,11 @@ export default function ChatComposer({
             </form>
 
             <footer className="composer-footer">
-                <span>Answers are grounded in indexed PDF passages. Verify important details.</span>
+                <span>
+                    {agentMode
+                        ? "🤖 AI Agent Mode: Autonomous reasoning with tools (search_notes, calculate, today, add_task)"
+                        : "Answers are grounded in indexed PDF passages. Verify important details."}
+                </span>
             </footer>
         </section>
     );

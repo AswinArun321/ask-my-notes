@@ -5,7 +5,9 @@ export default function Header({
     theme,
     onToggleTheme,
     messagesCount,
-    onClearChat
+    onClearChat,
+    agentMode,
+    onToggleAgentMode
 }) {
     let piecesLabel = "";
     if (countStatus === "loading") {
@@ -22,7 +24,7 @@ export default function Header({
                 <div className="brand-badge" aria-hidden="true">✦</div>
                 <div>
                     <h1 className="brand-title">Ask My Notes</h1>
-                    <p className="brand-tagline">PDF Assistant</p>
+                    <p className="brand-tagline">PDF Assistant & Study Buddy</p>
                 </div>
             </div>
 
@@ -47,6 +49,17 @@ export default function Header({
             </div>
 
             <div className="header-actions">
+                <button
+                    type="button"
+                    className={`action-btn agent-toggle-btn ${agentMode ? "active" : ""}`}
+                    onClick={onToggleAgentMode}
+                    title={agentMode ? "Agent Mode is ON (uses tools). Click to switch to normal RAG." : "Agent Mode is OFF. Click to enable AI Agent."}
+                    aria-label="Toggle AI Agent mode"
+                >
+                    <span className="agent-icon" aria-hidden="true">🤖</span>
+                    <span>{agentMode ? "Agent: ON" : "Agent: OFF"}</span>
+                </button>
+
                 <button
                     type="button"
                     className="action-btn theme-toggle-btn"

@@ -8,6 +8,10 @@ from pydantic import BaseModel
 from groq import Groq
 
 from ingest import collection, add_pdf
+from agent_langchain import ask_agent
+
+# Live Voice WebSocket router
+from voice import router as voice_router
 
 
 # --------------------------------------------------
@@ -30,8 +34,11 @@ ai = Groq(api_key=api_key)
 
 app = FastAPI(
     title="PDF RAG Chatbot API",
-    description="Ask questions from your PDF documents",
-    version="1.0.0"
+    description=(
+        "Ask questions from PDF documents using RAG, "
+        "AI Agent, and Gemini Live Voice."
+    ),
+    version="3.0.0"
 )
 
 
@@ -68,7 +75,7 @@ def home():
 
 
 # --------------------------------------------------
-# 6. ASK QUESTION ENDPOINT
+# 6. ASK QUESTION ENDPOINT - ORIGINAL RAG
 # --------------------------------------------------
 
 @app.post("/ask")
@@ -155,7 +162,39 @@ ANSWER:
 
 
 # --------------------------------------------------
-# 7. PDF UPLOAD ENDPOINT
+# 7. AGENT ENDPOINT - LANGCHAIN AGENT
+# --------------------------------------------------
+
+@app.post("/agent")
+def agent(q: Question):
+
+    try:
+        if not q.question.strip():
+            raise HTTPException(
+                status_code=400,
+                detail="Question cannot be empty"
+            )
+
+        # Call LangChain agent
+        answer, steps = ask_agent(q.question)
+
+        return {
+            "answer": answer,
+            "steps": steps
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
+
+# --------------------------------------------------
+# 8. PDF UPLOAD ENDPOINT
 # --------------------------------------------------
 
 @app.post("/upload")
@@ -199,3 +238,28 @@ def upload(file: UploadFile = File(...)):
 
     finally:
         file.file.close()
+
+
+# --------------------------------------------------
+# 9. LIVE VOICE WEBSOCKET ROUTER
+# --------------------------------------------------
+
+app.include_router(voice_router)
+
+
+# --------------------------------------------------
+# 10. APPLICATION INFORMATION
+# --------------------------------------------------
+
+@app.get("/health")
+def health():
+    return {
+        "status": "healthy",
+        "service": "Ask My Notes",
+        "features": [
+            "PDF RAG",
+            "LangChain Agent",
+            "PDF Upload",
+            "Gemini Live Voice"
+        ]
+    }
